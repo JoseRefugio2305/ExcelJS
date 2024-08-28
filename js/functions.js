@@ -16,8 +16,13 @@ const funciones = { //Expresiones regulares para identificar las formulas introd
      },
      "basic5":{
           "regex":"=(([(]?[A-Z]?[0-9]+(.[0-9]+)?[+-/*]?([A-Z]?[0-9]+(.[0-9]+)?)?[)]?)[+-/*]?)+"
+     },
+     "sumRango":{
+          "regex":"=[A-Z][0-9]+:[A-Z][0-9]+"
      }
 }
+
+const abc = ['A','B','C','D','E','F','G','H','I','J','K','L','M','N','O','P','Q','R','S','T','U','V','W','X','Y','Z']
 
 let cellMeta = [] //Aqui guardaremos informacion de las celdas, como las formulas que tienen intriducidas, el resultado de dicha formula y que otras celdas hacen referencia a ella
      //{ "idcell":{
@@ -66,9 +71,9 @@ const indicarCR = (idCell, option) =>{//option 0 es para activar y 1 para desact
 
 const evalFun = (event)=>{
      let valin = event.value.trim()
-     if(new RegExp(funciones['basic3']['regex']).test(valin) || new RegExp(funciones['basic2']['regex']).test(valin))//Revisamos si es una formula basica
+     if((new RegExp(funciones['basic3']['regex']).test(valin) || new RegExp(funciones['basic2']['regex']).test(valin)) && !new RegExp(funciones['sumRango']['regex']).test(valin))//Revisamos si es una formula basica
      {
-
+          
           let ops = getOps(event.id, valin)
           if(!ops[0])
           {
@@ -77,8 +82,9 @@ const evalFun = (event)=>{
           // doOperation(event.id, operadores, operandos, valin)
           doOperation(event.id, ops[0], ops[1], valin)
      }
-     else if(new RegExp(funciones['basic5']['regex']).test(valin))
+     else if(new RegExp(funciones['basic5']['regex']).test(valin) && !new RegExp(funciones['sumRango']['regex']).test(valin))
      {
+          
           let cad_num = ""
           let arr_expr = []
           let arr_op = Array.from(valin.substr(1))
@@ -111,6 +117,15 @@ const evalFun = (event)=>{
           }
 
           doInfijo(event.id, arr_expr, valin, ops[0], ops[1])
+     }
+     else if(new RegExp(funciones['sumRango']['regex']).test(valin))
+     {
+          let ops = getOps(event.id, valin)
+          if(!ops[0])
+          {
+               return false
+          }
+          doSumRango(event.id, ops[0], ops[1], valin)
      }
      else if(new RegExp(funciones['text']['regex']).test(valin) || valin==='')//Revisamos si es solo texto o un numero o esta vacio
      {
@@ -147,13 +162,13 @@ const evalFun = (event)=>{
 const getOps = (idCell, value) =>{
      let val = value.substr(1)//quitamos el igual = de la entrada de texto
      let operadores = val.split(/[A-Z]?[0-9]+/)//hacemos un split para tomar solo los operadores de la formula
-     let operandos = val.split(/[+--*/()]/)//tomamos solo los operandos
+     let operandos = val.split(/[+--*/():]/)//tomamos solo los operandos
 
      //revisams si esta haciendo referencia a la misma celda, ya que esto no es posible
      let refsm = operandos.find((x)=>x==idCell)
      if(refsm)
      {
-          confirm("Una celda no pued hacer referencia a si misma")
+          alert("Una celda no pued hacer referencia a si misma")
           return [false, false]
      }
 
@@ -341,6 +356,7 @@ const doInfijo = (idCell, arrExp, formula, operadores, operandos) => {
                "cellref":cellMeta[isExistsIdx].cellref
           }
      }
+     
 
      let arreglo = arrExp
      // let arreglo = ['(','(',5,'+',3,'*',5,')','^',2,')','^',3,'-',2]
@@ -554,4 +570,101 @@ const doOperationArExp = (nodo) => {
      {
           return nodo
      }
+}
+
+
+const doSumRango = (idCell, operadores, operandos, formula) => {//Solo sumas de rango de una sola columna
+     let isExistsIdx = cellMeta.findIndex((x)=>x.idCell==idCell)
+     if(isExistsIdx==-1)
+     {
+          cellMeta.push({
+               idCell,
+               operandos,
+               operadores,
+               formula,
+               "resultado":0,
+               "cellref":[]
+          })
+     }
+     else
+     {
+          cellMeta[isExistsIdx]={
+               idCell,
+               operandos,
+               operadores,
+               formula,
+               "resultado":cellMeta[isExistsIdx].resultado,
+               "cellref":cellMeta[isExistsIdx].cellref
+          }
+     }
+
+     let ord_operandos = []
+     for(let e=0; e<operandos.length; e++)
+     {
+          let col=operandos[e].replace(/[0-9]+/,'')
+          let n_cell=parseInt(operandos[e].replace(/[A-Z]/,''))
+          ord_operandos.push([col,  n_cell, operandos[e]])
+     }
+
+     
+     ord_operandos = ord_operandos.sort((a, b)=>{
+          if (a[1] > b[1]) {
+               return 1;
+          }
+          if (a[1] < b[1]) {
+               return -1;
+          }
+          // a must be equal to b
+          return 0;
+     })
+     let col_in = abc.findIndex((x)=>x==ord_operandos[0][0]) < abc.findIndex((x)=>x==ord_operandos[1][0]) ? abc.findIndex((x)=>x==ord_operandos[0][0]) : abc.findIndex((x)=>x==ord_operandos[1][0])
+     let col_fin = abc.findIndex((x)=>x==ord_operandos[0][0]) > abc.findIndex((x)=>x==ord_operandos[1][0]) ? abc.findIndex((x)=>x==ord_operandos[0][0]) : abc.findIndex((x)=>x==ord_operandos[1][0])
+     // console.log("Numero de columnas a sumar: ",col_fin-col_in)
+     let resultado = 0
+     for(let y=col_in; y<=col_fin; y++)
+     {
+          for(let x=ord_operandos[0][1]; x<=ord_operandos[1][1]; x++)
+          {
+               if((abc[y]+x)==idCell)
+               {
+                    alert("La suma de rangos no puede incluir la celda sobre la que se aplica la formula")
+                    return false
+               }
+               let valcel = document.getElementById(abc[y]+x)
+               try {
+                    resultado += parseFloat(valcel.value ? valcel.value : 0)
+               } catch (error) {
+                    resultado += valcel
+               }
+               
+               //Hacemos que ahora la celda a la que hacemos referencia guarde en su informacion que celda hace referencia a ella
+               let isEIdx = cellMeta.findIndex((x)=>x.idCell==valcel.id)
+               if(isEIdx==-1)
+               {
+                    cellMeta.push({
+                         "idCell":valcel.id,
+                         "operandos":[],
+                         "operadores":[],
+                         "formula":"",
+                         "resultado":0,
+                         "cellref":[idCell]
+                    })
+               }
+               else
+               {
+                    let isEIdxRef = cellMeta[isEIdx].cellref.findIndex((y)=>y==idCell)//Esta evaluacion es para que el arreglo de referencias no repita celdas
+                    if(isEIdxRef==-1)
+                    {
+                         cellMeta[isEIdx].cellref.push(idCell)
+                    }
+                    
+               }
+          }
+     }
+     
+
+
+     isExistsIdx = cellMeta.findIndex((x)=>x.idCell==idCell)
+     cellMeta[isExistsIdx].resultado = resultado
+     document.getElementById(idCell).value = resultado
 }

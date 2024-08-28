@@ -7,6 +7,7 @@ Este es un pequeño proyecto donde se lleva a cabo la implementacion de una vers
 - Este proyecto lleva a cabo solo operaciones matematicas simples.
 - Puede hacer referencias a otras celdas en las operaciones
 - Actualiza el resultado de una formula cuando una celda referenciada actualiza su valor
+- Suma por rangos de celdas
 
 ## Idea
 
